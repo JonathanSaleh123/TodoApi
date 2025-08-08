@@ -1,41 +1,69 @@
+using Microsoft.EntityFrameworkCore;
+
 var builder = WebApplication.CreateBuilder(args);
 
-// Add services to the container.
-// Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
-builder.Services.AddOpenApi();
 
+//1. Add Database Context to the DI container
+builder.Services.AddDbContext<TodoDbContext>(options =>
+    options.UseSqlite("Data Source=todo.db"));
+
+// Swagger for API documentation
+builder.Services.AddEndpointsApiExplorer();
+builder.Services.AddSwaggerGen();
 var app = builder.Build();
 
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
 {
-    app.MapOpenApi();
+    app.UseSwagger();
+    app.UseSwaggerUI();
 }
-
 app.UseHttpsRedirection();
 
-var summaries = new[]
-{
-    "Freezing", "Bracing", "Chilly", "Cool", "Mild", "Warm", "Balmy", "Hot", "Sweltering", "Scorching"
-};
+//2. Map Endpoints
+app.MapGet("", () => "Hello World!");
 
-app.MapGet("/weatherforecast", () =>
+// Create Todo
+app.MapPost("/todos", async (TodoDbContext db, Todo todo) =>
 {
-    var forecast =  Enumerable.Range(1, 5).Select(index =>
-        new WeatherForecast
-        (
-            DateOnly.FromDateTime(DateTime.Now.AddDays(index)),
-            Random.Shared.Next(-20, 55),
-            summaries[Random.Shared.Next(summaries.Length)]
-        ))
-        .ToArray();
-    return forecast;
-})
-.WithName("GetWeatherForecast");
+    db.Todos.Add(todo);
+    await db.SaveChangesAsync();
+    return Results.Created($"/todos/{todo.Id}", todo);
+});
+
+// Read all
+app.MapGet("/todos", async (TodoDbContext db) =>
+    await db.Todos.ToListAsync());
+
+// Read single 
+app.MapGet("/todos/{id}", async (int id, TodoDbContext db) =>
+    await db.Todos.FindAsync(id)
+        is Todo todo
+            ? Results.Ok(todo)
+            : Results.NotFound());
+// Update
+app.MapPut("/todos/{id}", async (int id, TodoDbContext db, Todo inputTodo) =>
+{
+    var todo = await db.Todos.FindAsync(id);
+    if (todo is null) return Results.NotFound();
+    todo.Name = inputTodo.Name;
+    todo.IsCompleted = inputTodo.IsCompleted;
+
+    await db.SaveChangesAsync();
+    return Results.NoContent();
+});
+
+// Delete
+app.MapDelete("/todos/{id}", async (int id, TodoDbContext db) =>
+{
+    if (await db.Todos.FindAsync(id) is Todo todo)
+    {
+        db.Todos.Remove(todo);
+        await db.SaveChangesAsync();
+        return Results.Ok(todo);
+    }
+    return Results.NotFound();
+});
 
 app.Run();
 
-record WeatherForecast(DateOnly Date, int TemperatureC, string? Summary)
-{
-    public int TemperatureF => 32 + (int)(TemperatureC / 0.5556);
-}
