@@ -3,6 +3,9 @@ using Microsoft.EntityFrameworkCore;
 var builder = WebApplication.CreateBuilder(args);
 
 
+// Define a CORS policy
+var MyAllowSpecificOrigins = "_myAllowSpecificOrigins";
+
 //1. Add Database Context to the DI container
 builder.Services.AddDbContext<TodoDbContext>(options =>
     options.UseSqlite("Data Source=todo.db"));
@@ -10,6 +13,21 @@ builder.Services.AddDbContext<TodoDbContext>(options =>
 // Swagger for API documentation
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
+
+// Add CORS services
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy(name: MyAllowSpecificOrigins,
+                      policy =>
+                      {
+                          // Replace the port with the one your Blazor app will use!
+                          // You can find it in TodoClient/Properties/launchSettings.json
+                          policy.WithOrigins("http://localhost:5207")
+                                .AllowAnyHeader()
+                                .AllowAnyMethod();
+                      });
+});
+
 var app = builder.Build();
 
 // Configure the HTTP request pipeline.
@@ -19,7 +37,7 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI();
 }
 app.UseHttpsRedirection();
-
+app.UseCors(MyAllowSpecificOrigins);
 //2. Map Endpoints
 app.MapGet("", () => "Hello World!");
 
