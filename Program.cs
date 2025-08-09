@@ -59,16 +59,19 @@ app.MapGet("/todos/{id}", async (int id, TodoDbContext db) =>
         is Todo todo
             ? Results.Ok(todo)
             : Results.NotFound());
-// Update
-app.MapPut("/todos/{id}", async (int id, TodoDbContext db, Todo inputTodo) =>
-{
-    var todo = await db.Todos.FindAsync(id);
-    if (todo is null) return Results.NotFound();
-    todo.Name = inputTodo.Name;
-    todo.IsCompleted = inputTodo.IsCompleted;
 
-    await db.SaveChangesAsync();
-    return Results.NoContent();
+// U: UPDATE a Todo item
+app.MapPut("/todos/{id}", async (int id, Todo inputTodo, TodoDbContext db) =>
+{
+    // This is a more modern and efficient approach using EF Core 7+
+    var rowsAffected = await db.Todos.Where(t => t.Id == id)
+        .ExecuteUpdateAsync(updates =>
+            updates.SetProperty(t => t.Name, inputTodo.Name)
+                   .SetProperty(t => t.IsCompleted, inputTodo.IsCompleted));
+
+    // If no rows were affected, it means the ID was not found.
+    
+    return rowsAffected == 0 ? Results.NotFound() : Results.NoContent();
 });
 
 // Delete
