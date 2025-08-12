@@ -1,7 +1,19 @@
 using Microsoft.EntityFrameworkCore;
+using DotNetEnv;
 
 var builder = WebApplication.CreateBuilder(args);
 
+// Load environment variables from .env file if it exists
+Env.Load();
+
+// Add environment variables to configuration
+builder.Configuration.AddEnvironmentVariables();
+
+// Add controller support
+builder.Services.AddControllers();
+
+// Add HttpClient factory for external API calls
+builder.Services.AddHttpClient();
 
 // Define a CORS policy
 var MyAllowSpecificOrigins = "_myAllowSpecificOrigins";
@@ -38,6 +50,10 @@ if (app.Environment.IsDevelopment())
 }
 app.UseHttpsRedirection();
 app.UseCors(MyAllowSpecificOrigins);
+
+// Add controller routing
+app.MapControllers();
+
 //2. Map Endpoints
 app.MapGet("", () => "Hello World!");
 
